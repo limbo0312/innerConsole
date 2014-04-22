@@ -16,17 +16,25 @@
 #import "GTMStackTrace.h"
 #endif
 
-#import "AppDelegate.h"
-#define DELEGATE_OF_APP  ((AppDelegate *)[[UIApplication sharedApplication] delegate])
+#import "iOctocat.h"
+#define DELEGATE_OF_APP  ((iOctocat *)[[UIApplication sharedApplication] delegate])
 
 #define EDITFIELD_HEIGHT    28
 #define ACTION_BUTTON_WIDTH 28
+#define R_MAKE(X, Y, W, H) CGRectMake(X,Y,W,H)
+#define COLOR(R, G, B, A) [UIColor colorWithRed:R/255.0 green:G/255.0 blue:B/255.0 alpha:A]
 
 #import "swizzOnNSURLConnection.h"
 
 #define iConsoleKey @"innerConsoleLog"
 
-#import "NSString+Extensions.h"
+#import <sys/sysctl.h>
+#import <mach/mach.h>
+
+//#import "NSString+Extensions.h"
+
+
+
 
 @interface innerConsole() <UIActionSheetDelegate>
 
@@ -99,8 +107,8 @@ void exceptionHandler(NSException *exception);
 #pragma mark --
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
-	if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil]))
-	{
+    if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil]))
+    {
 #if ICONSOLE_ADD_EXCEPTION_HANDLER
         NSSetUncaughtExceptionHandler(&exceptionHandler);
 #endif
@@ -146,21 +154,21 @@ void exceptionHandler(NSException *exception);
                                                  selector:@selector(resizeView:)
                                                      name:UIApplicationWillChangeStatusBarFrameNotification
                                                    object:nil];
-	}
-	return self;
+    }
+    return self;
 }
 
 - (void)viewDidLoad
 {
     self.view.clipsToBounds = YES;
-	self.view.backgroundColor = _backgroundColor;
-	self.view.autoresizesSubviews = YES;
+    self.view.backgroundColor = _backgroundColor;
+    self.view.autoresizesSubviews = YES;
     self.view.alpha = 0.85;
     
     //1===>console View
     CGRect tempRect = R_MAKE(0, 0, 320, self.view.bounds.size.height);
     
-	self.consoleView = ({
+    self.consoleView = ({
                             UITextView *tview =    [[UITextView alloc] initWithFrame:tempRect];
                             tview.font                           = [UIFont fontWithName:@"Courier" size:10];
                             tview.textColor                      = COLOR(101, 191, 107, 1);//_textColor;
@@ -176,11 +184,11 @@ void exceptionHandler(NSException *exception);
                         });
     
 
-	[self setConsoleText];
-	[self.view addSubview:_consoleView];
-	
+    [self setConsoleText];
+    [self.view addSubview:_consoleView];
+    
     //2===>main Btn
-	self.actionButton = ({
+    self.actionButton = ({
         UIButton *btnT = [UIButton buttonWithType:UIButtonTypeCustom];
         [btnT setTitle:@"⚙" forState:UIControlStateNormal];
         [btnT setTitleColor:_textColor forState:UIControlStateNormal];
@@ -201,8 +209,8 @@ void exceptionHandler(NSException *exception);
     });
     
     
-	[self.view addSubview:_actionButton];
-	
+    [self.view addSubview:_actionButton];
+    
     //3===>ram lable index
     self.RAM_Lbl = ({
         UILabel *lbl = [[UILabel alloc] initWithFrame:R_MAKE(0, 50, 320, 24)];
@@ -216,14 +224,14 @@ void exceptionHandler(NSException *exception);
     [self.view addSubview:self.RAM_Lbl];
 
 
-	[self.consoleView scrollRangeToVisible:NSMakeRange(self.consoleView.text.length, 0)];
+    [self.consoleView scrollRangeToVisible:NSMakeRange(self.consoleView.text.length, 0)];
 }
 
 - (void)viewDidUnload
 {
-	self.consoleView = nil;
-	self.inputField = nil;
-	self.actionButton = nil;
+    self.consoleView = nil;
+    self.inputField = nil;
+    self.actionButton = nil;
     
     [super viewDidUnload];
 }
@@ -234,22 +242,22 @@ void exceptionHandler(NSException *exception);
 
 + (void)log:(NSString *)format arguments:(va_list)argList
 {
-	NSLogv(format, argList);
-	
+    NSLogv(format, argList);
+    
     if ([self sharedConsole].enabled)
     {
         NSString *message = [[NSString alloc] initWithFormat:format arguments:argList];
         
-        NSString *messageWithoutUnicode = [NSString stringByReplaceUnicode:message];//===>输出汉字的log
+//        NSString *messageWithoutUnicode = [NSString stringByReplaceUnicode:message];//===>输出汉字的log
         
         if ([NSThread currentThread] == [NSThread mainThread])
         {
-            [[self sharedConsole] logOnMainThread:messageWithoutUnicode];
+            [[self sharedConsole] logOnMainThread:message];
         }
         else
         {
             [[self sharedConsole] performSelectorOnMainThread:@selector(logOnMainThread:)
-                                                   withObject:messageWithoutUnicode
+                                                   withObject:message
                                                 waitUntilDone:NO];
         }
     }
@@ -279,7 +287,7 @@ void exceptionHandler(NSException *exception);
 
 + (void)warn:(NSString *)format, ...
 {
-	if ([self sharedConsole].logLevel >= iConsoleLogLevelWarning)
+    if ([self sharedConsole].logLevel >= iConsoleLogLevelWarning)
     {
         va_list argList;
         va_start(argList, format);
@@ -312,63 +320,63 @@ void exceptionHandler(NSException *exception);
 
 + (void)clear
 {
-	[[innerConsole sharedConsole] resetLog];
+    [[innerConsole sharedConsole] resetLog];
 }
 
 + (void)show
 {
-	[[innerConsole sharedConsole] showConsole];
+    [[innerConsole sharedConsole] showConsole];
 }
 
 + (void)hide
 {
-	[[innerConsole sharedConsole] hideConsole];
+    [[innerConsole sharedConsole] hideConsole];
 }
 
 #pragma mark -- private helper method
 - (void)resetLog
 {
-	self.log_mArr = [NSMutableArray array];
-	[self setConsoleText];
+    self.log_mArr = [NSMutableArray array];
+    [self setConsoleText];
 }
 - (void)showConsole
 {
-	if (!_animating && self.view.superview == nil)
-	{
+    if (!_animating && self.view.superview == nil)
+    {
         [self setConsoleText];
         
-		[self findAndResignFirstResponder:[self mainWindow]];
-		
-		[innerConsole sharedConsole].view.frame = [self offscreenFrame];
-		[[self mainWindow] addSubview:[innerConsole sharedConsole].view];
-		
-		_animating = YES;
-		[UIView beginAnimations:nil context:nil];
-		[UIView setAnimationDuration:0.4];
-		[UIView setAnimationDelegate:self];
-		[UIView setAnimationDidStopSelector:@selector(consoleShown)];
-		[innerConsole sharedConsole].view.frame = [self onscreenFrame];
+        [self findAndResignFirstResponder:[self mainWindow]];
+        
+        [innerConsole sharedConsole].view.frame = [self offscreenFrame];
+        [[self mainWindow] addSubview:[innerConsole sharedConsole].view];
+        
+        _animating = YES;
+        [UIView beginAnimations:nil context:nil];
+        [UIView setAnimationDuration:0.4];
+        [UIView setAnimationDelegate:self];
+        [UIView setAnimationDidStopSelector:@selector(consoleShown)];
+        [innerConsole sharedConsole].view.frame = [self onscreenFrame];
         [innerConsole sharedConsole].view.transform = [self viewTransform];
-		[UIView commitAnimations];
-	}
+        [UIView commitAnimations];
+    }
 
         //===update info on RAM
-    self.RAM_Lbl.text = [NSString   stringWithFormat:@"MEMO_available is %f, MEMO_used is %f",MEMO_available,MEMO_used];
+    self.RAM_Lbl.text = [NSString   stringWithFormat:@"MEMO_available is %f, MEMO_used is %f",[self availableMemory],[self usedMemory]];
 }
 - (void)hideConsole
 {
-	if (!_animating && self.view.superview != nil)
-	{
-		[self findAndResignFirstResponder:[self mainWindow]];
-		
-		_animating = YES;
-		[UIView beginAnimations:nil context:nil];
-		[UIView setAnimationDuration:0.4];
-		[UIView setAnimationDelegate:self];
-		[UIView setAnimationDidStopSelector:@selector(consoleHidden)];
-		[innerConsole sharedConsole].view.frame = [self offscreenFrame];
-		[UIView commitAnimations];
-	}
+    if (!_animating && self.view.superview != nil)
+    {
+        [self findAndResignFirstResponder:[self mainWindow]];
+        
+        _animating = YES;
+        [UIView beginAnimations:nil context:nil];
+        [UIView setAnimationDuration:0.4];
+        [UIView setAnimationDelegate:self];
+        [UIView setAnimationDidStopSelector:@selector(consoleHidden)];
+        [innerConsole sharedConsole].view.frame = [self offscreenFrame];
+        [UIView commitAnimations];
+    }
 }
 
 - (NSString *)URLEncodedString:(NSString *)string
@@ -380,14 +388,14 @@ void exceptionHandler(NSException *exception);
 
 void exceptionHandler(NSException *exception)
 {
-	
+    
 #if ICONSOLE_USE_GOOGLE_STACK_TRACE
     extern NSString *GTMStackTraceFromException(NSException *e);
     [innerConsole crash:@"%@\n\nStack trace:\n%@)", exception, GTMStackTraceFromException(exception)];
 #else
-	[innerConsole crash:@"%@", exception];
+    [innerConsole crash:@"%@", exception];
 #endif
-	[[innerConsole sharedConsole] saveSettings];
+    [[innerConsole sharedConsole] saveSettings];
 }
 
 + (void)load
@@ -411,24 +419,24 @@ void exceptionHandler(NSException *exception)
 
 - (void)setConsoleText
 {
-	NSString *text = _infoString;//EGS note word
+    NSString *text = _infoString;//EGS note word
     
-	int touches = (TARGET_IPHONE_SIMULATOR ? _simulatorTouchesToShow: _deviceTouchesToShow);
-	if (touches > 0 && touches < 11)
-	{
-		text = [text stringByAppendingFormat:@"\nSwipe down with %i finger%@ to hide console", touches, (touches != 1)? @"s": @""];
-	}
-	else if (TARGET_IPHONE_SIMULATOR ? _simulatorShakeToShow: _deviceShakeToShow)
-	{
-		text = [text stringByAppendingString:@"\nShake device to hide console"];
-	}
+    int touches = (TARGET_IPHONE_SIMULATOR ? _simulatorTouchesToShow: _deviceTouchesToShow);
+    if (touches > 0 && touches < 11)
+    {
+        text = [text stringByAppendingFormat:@"\nSwipe down with %i finger%@ to hide console", touches, (touches != 1)? @"s": @""];
+    }
+    else if (TARGET_IPHONE_SIMULATOR ? _simulatorShakeToShow: _deviceShakeToShow)
+    {
+        text = [text stringByAppendingString:@"\nShake device to hide console"];
+    }
     
     
-	text = [text stringByAppendingString:@"\n--------------------------------------\n--------------------------------------\n"];
-	text = [text stringByAppendingString:[[_log_mArr arrayByAddingObject:@"$$$$$$======> "] componentsJoinedByString:@"\n"]];
+    text = [text stringByAppendingString:@"\n--------------------------------------\n--------------------------------------\n"];
+    text = [text stringByAppendingString:[[_log_mArr arrayByAddingObject:@"$$$$$$======> "] componentsJoinedByString:@"\n"]];
     
-	_consoleView.text = text;
-	
+    _consoleView.text = text;
+    
     if (!_go_upDown)
         [_consoleView scrollRangeToVisible:NSMakeRange(_consoleView.text.length, 0)];
 }
@@ -446,16 +454,16 @@ void exceptionHandler(NSException *exception)
 - (BOOL)findAndResignFirstResponder:(UIView *)view
 {
     if ([view isFirstResponder])
-	{
+    {
         [view resignFirstResponder];
         return YES;
     }
     for (UIView *subview in view.subviews)
-	{
+    {
         if ([self findAndResignFirstResponder:subview])
         {
-			return YES;
-		}
+            return YES;
+        }
     }
     return NO;
 }
@@ -463,110 +471,110 @@ void exceptionHandler(NSException *exception)
 //action sheet init
 - (void)infoAction_configure
 {
-	[self findAndResignFirstResponder:[self mainWindow]];
-	
-	UIActionSheet *sheet = [[UIActionSheet alloc] initWithTitle:@""
+    [self findAndResignFirstResponder:[self mainWindow]];
+    
+    UIActionSheet *sheet = [[UIActionSheet alloc] initWithTitle:@""
                                                        delegate:self
                                               cancelButtonTitle:@"Cancel"
                                          destructiveButtonTitle:@"Clear Log"
                                               otherButtonTitles:@"report Email",@"dumpCurrView",@"dumpUserPlist",@"trackUrl_OnOff",@"Scroll_UpDown",@"Quit", nil];
     
-	sheet.actionSheetStyle = UIActionSheetStyleBlackOpaque;
-	[sheet showInView:self.view];
+    sheet.actionSheetStyle = UIActionSheetStyleBlackOpaque;
+    [sheet showInView:self.view];
 }
 
 - (CGAffineTransform)viewTransform
 {
-	CGFloat angle = 0;
-	switch ([UIApplication sharedApplication].statusBarOrientation)
+    CGFloat angle = 0;
+    switch ([UIApplication sharedApplication].statusBarOrientation)
     {
         case UIInterfaceOrientationPortrait:
             angle = 0;
             break;
-		case UIInterfaceOrientationPortraitUpsideDown:
-			angle = M_PI;
-			break;
-		case UIInterfaceOrientationLandscapeLeft:
-			angle = -M_PI_2;
-			break;
-		case UIInterfaceOrientationLandscapeRight:
-			angle = M_PI_2;
-			break;
-	}
-	return CGAffineTransformMakeRotation(angle);
+        case UIInterfaceOrientationPortraitUpsideDown:
+            angle = M_PI;
+            break;
+        case UIInterfaceOrientationLandscapeLeft:
+            angle = -M_PI_2;
+            break;
+        case UIInterfaceOrientationLandscapeRight:
+            angle = M_PI_2;
+            break;
+    }
+    return CGAffineTransformMakeRotation(angle);
 }
 
 - (CGRect)onscreenFrame
 {
-	return [UIScreen mainScreen].bounds;
+    return [UIScreen mainScreen].bounds;
 }
 
 - (CGRect)offscreenFrame
 {
-	CGRect frame = [self onscreenFrame];
-	switch ([UIApplication sharedApplication].statusBarOrientation)
+    CGRect frame = [self onscreenFrame];
+    switch ([UIApplication sharedApplication].statusBarOrientation)
     {
-		case UIInterfaceOrientationPortrait:
-			frame.origin.y = frame.size.height;
-			break;
-		case UIInterfaceOrientationPortraitUpsideDown:
-			frame.origin.y = -frame.size.height;
-			break;
-		case UIInterfaceOrientationLandscapeLeft:
-			frame.origin.x = frame.size.width;
-			break;
-		case UIInterfaceOrientationLandscapeRight:
-			frame.origin.x = -frame.size.width;
-			break;
-	}
-	return frame;
+        case UIInterfaceOrientationPortrait:
+            frame.origin.y = frame.size.height;
+            break;
+        case UIInterfaceOrientationPortraitUpsideDown:
+            frame.origin.y = -frame.size.height;
+            break;
+        case UIInterfaceOrientationLandscapeLeft:
+            frame.origin.x = frame.size.width;
+            break;
+        case UIInterfaceOrientationLandscapeRight:
+            frame.origin.x = -frame.size.width;
+            break;
+    }
+    return frame;
 }
 
 - (void)consoleShown
 {
-	_animating = NO;
-	[self findAndResignFirstResponder:[self mainWindow]];
+    _animating = NO;
+    [self findAndResignFirstResponder:[self mainWindow]];
 }
 
 - (void)consoleHidden
 {
-	_animating = NO;
-	[[[innerConsole sharedConsole] view] removeFromSuperview];
+    _animating = NO;
+    [[[innerConsole sharedConsole] view] removeFromSuperview];
 }
 
 - (void)rotateView:(NSNotification *)notification
 {
-	self.view.transform = [self viewTransform];
-	self.view.frame = [self onscreenFrame];
-	
+    self.view.transform = [self viewTransform];
+    self.view.frame = [self onscreenFrame];
+    
 }
 
 - (void)resizeView:(NSNotification *)notification
 {
-	CGRect frame = [[notification.userInfo valueForKey:UIApplicationStatusBarFrameUserInfoKey] CGRectValue];
-	CGRect bounds = [UIScreen mainScreen].bounds;
-	switch ([UIApplication sharedApplication].statusBarOrientation)
+    CGRect frame = [[notification.userInfo valueForKey:UIApplicationStatusBarFrameUserInfoKey] CGRectValue];
+    CGRect bounds = [UIScreen mainScreen].bounds;
+    switch ([UIApplication sharedApplication].statusBarOrientation)
     {
-		case UIInterfaceOrientationPortrait:
-			bounds.origin.y += frame.size.height;
-			bounds.size.height -= frame.size.height;
-			break;
-		case UIInterfaceOrientationPortraitUpsideDown:
-			bounds.size.height -= frame.size.height;
-			break;
-		case UIInterfaceOrientationLandscapeLeft:
-			bounds.origin.x += frame.size.width;
-			bounds.size.width -= frame.size.width;
-			break;
-		case UIInterfaceOrientationLandscapeRight:
-			bounds.size.width -= frame.size.width;
-			break;
-	}
-	[UIView beginAnimations:nil context:nil];
-	[UIView setAnimationCurve:UIViewAnimationCurveEaseInOut];
-	[UIView setAnimationDuration:0.35];
-	self.view.frame = bounds;
-	[UIView commitAnimations];
+        case UIInterfaceOrientationPortrait:
+            bounds.origin.y += frame.size.height;
+            bounds.size.height -= frame.size.height;
+            break;
+        case UIInterfaceOrientationPortraitUpsideDown:
+            bounds.size.height -= frame.size.height;
+            break;
+        case UIInterfaceOrientationLandscapeLeft:
+            bounds.origin.x += frame.size.width;
+            bounds.size.width -= frame.size.width;
+            break;
+        case UIInterfaceOrientationLandscapeRight:
+            bounds.size.width -= frame.size.width;
+            break;
+    }
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationCurve:UIViewAnimationCurveEaseInOut];
+    [UIView setAnimationDuration:0.35];
+    self.view.frame = bounds;
+    [UIView commitAnimations];
 }
 
 
@@ -586,11 +594,11 @@ void exceptionHandler(NSException *exception)
     
     
     //===newMsg info append
-	[_log_mArr addObject:strAppend];
-	if ([_log_mArr count] > _maxLogItems)
-	{
-		[_log_mArr removeObjectAtIndex:0];
-	}
+    [_log_mArr addObject:strAppend];
+    if ([_log_mArr count] > _maxLogItems)
+    {
+        [_log_mArr removeObjectAtIndex:0];
+    }
     [[NSUserDefaults standardUserDefaults] setObject:_log_mArr forKey:iConsoleKey];
     if (self.view.superview)
     {
@@ -602,33 +610,33 @@ void exceptionHandler(NSException *exception)
 #pragma mark UIActionSheetDelegate methods
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
 {
-	if (buttonIndex == actionSheet.destructiveButtonIndex)
-	{
-		[innerConsole clear];
-	}
-	else if (buttonIndex == 1)//send by mail
-	{
+    if (buttonIndex == actionSheet.destructiveButtonIndex)
+    {
+        [innerConsole clear];
+    }
+    else if (buttonIndex == 1)//send by mail
+    {
         NSString *URLSafeName = [self URLEncodedString:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]];
         NSString *URLSafeLog = [self URLEncodedString:[_log_mArr componentsJoinedByString:@"\n"]];
         NSMutableString *URLString = [NSMutableString stringWithFormat:@"mailto:%@?subject=%@%%20Console%%20Log&body=%@",
                                       _logSubmissionEmail ?: @"", URLSafeName, URLSafeLog];
         
         [[UIApplication sharedApplication] openURL:[NSURL URLWithString:URLString]];
-	}
+    }
     else if(buttonIndex == 2)//显示当前VC.view 的结果
     {
         if ([DELEGATE_OF_APP.window.rootViewController isKindOfClass:[UINavigationController class]]) {//navVC
-            UINavigationController *navVC = (UINavigationController *)DELEGATE_OF_APP.window.rootViewController;
-            TREE_View(navVC.topViewController.view);
+//            UINavigationController *navVC = (UINavigationController *)DELEGATE_OF_APP.window.rootViewController;
+//            TREE_View(navVC.topViewController.view);
         }
         else if ([DELEGATE_OF_APP.window.rootViewController isKindOfClass:[UITabBarController  class]])//tabbarVC
         {
-            UITabBarController *tabVC = (UITabBarController *)DELEGATE_OF_APP.window.rootViewController;
-            TREE_View(tabVC.selectedViewController.view);
+//            UITabBarController *tabVC = (UITabBarController *)DELEGATE_OF_APP.window.rootViewController;
+//            TREE_View(tabVC.selectedViewController.view);
         }
         else  //elseVC
         {
-            TREE_View(DELEGATE_OF_APP.window.rootViewController.view);
+//            TREE_View(DELEGATE_OF_APP.window.rootViewController.view);
         }
         
     }
@@ -721,89 +729,89 @@ void exceptionHandler(NSException *exception)
 
 - (void)sendEvent:(UIEvent *)event
 {
-	if ([innerConsole sharedConsole].enabled && event.type == UIEventTypeTouches)
-	{
-		NSSet *touches = [event allTouches];
-		if ([touches count] == (TARGET_IPHONE_SIMULATOR ? [innerConsole sharedConsole].simulatorTouchesToShow: [innerConsole sharedConsole].deviceTouchesToShow))
-		{
+    if ([innerConsole sharedConsole].enabled && event.type == UIEventTypeTouches)
+    {
+        NSSet *touches = [event allTouches];
+        if ([touches count] == (TARGET_IPHONE_SIMULATOR ? [innerConsole sharedConsole].simulatorTouchesToShow: [innerConsole sharedConsole].deviceTouchesToShow))
+        {
             BOOL allUp    = YES;
             BOOL allDown  = YES;
             BOOL allLeft  = YES;
             BOOL allRight = YES;
-			
-			for (UITouch *touch in touches)
-			{
-				if ([touch locationInView:self].y <= [touch previousLocationInView:self].y)
-				{
-					allDown = NO;
-				}
-				if ([touch locationInView:self].y >= [touch previousLocationInView:self].y)
-				{
-					allUp = NO;
-				}
-				if ([touch locationInView:self].x <= [touch previousLocationInView:self].x)
-				{
-					allLeft = NO;
-				}
-				if ([touch locationInView:self].x >= [touch previousLocationInView:self].x)
-				{
-					allRight = NO;
-				}
-			}
-			
-			switch ([UIApplication sharedApplication].statusBarOrientation)
+            
+            for (UITouch *touch in touches)
             {
-				case UIInterfaceOrientationPortrait:
+                if ([touch locationInView:self].y <= [touch previousLocationInView:self].y)
                 {
-					if (allUp)
-					{
-						[innerConsole show];
-					}
-					else if (allDown)
-					{
-						[innerConsole hide];
-					}
-					break;
+                    allDown = NO;
                 }
-				case UIInterfaceOrientationPortraitUpsideDown:
+                if ([touch locationInView:self].y >= [touch previousLocationInView:self].y)
                 {
-					if (allDown)
-					{
-						[innerConsole show];
-					}
-					else if (allUp)
-					{
-						[innerConsole hide];
-					}
-					break;
+                    allUp = NO;
                 }
-				case UIInterfaceOrientationLandscapeLeft:
+                if ([touch locationInView:self].x <= [touch previousLocationInView:self].x)
                 {
-					if (allRight)
-					{
-						[innerConsole show];
-					}
-					else if (allLeft)
-					{
-						[innerConsole hide];
-					}
-					break;
+                    allLeft = NO;
                 }
-				case UIInterfaceOrientationLandscapeRight:
+                if ([touch locationInView:self].x >= [touch previousLocationInView:self].x)
                 {
-					if (allLeft)
-					{
-						[innerConsole show];
-					}
-					else if (allRight)
-					{
-						[innerConsole hide];
-					}
-					break;
+                    allRight = NO;
                 }
-			}
-		}
-	}
+            }
+            
+            switch ([UIApplication sharedApplication].statusBarOrientation)
+            {
+                case UIInterfaceOrientationPortrait:
+                {
+                    if (allUp)
+                    {
+                        [innerConsole show];
+                    }
+                    else if (allDown)
+                    {
+                        [innerConsole hide];
+                    }
+                    break;
+                }
+                case UIInterfaceOrientationPortraitUpsideDown:
+                {
+                    if (allDown)
+                    {
+                        [innerConsole show];
+                    }
+                    else if (allUp)
+                    {
+                        [innerConsole hide];
+                    }
+                    break;
+                }
+                case UIInterfaceOrientationLandscapeLeft:
+                {
+                    if (allRight)
+                    {
+                        [innerConsole show];
+                    }
+                    else if (allLeft)
+                    {
+                        [innerConsole hide];
+                    }
+                    break;
+                }
+                case UIInterfaceOrientationLandscapeRight:
+                {
+                    if (allLeft)
+                    {
+                        [innerConsole show];
+                    }
+                    else if (allRight)
+                    {
+                        [innerConsole hide];
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     //global catch exception
     @try {
@@ -814,23 +822,23 @@ void exceptionHandler(NSException *exception)
         
         NSString *exceptionSTinfo = [NSString stringWithFormat:@"%@\n\nStack trace:\n%@)", exception, GTMStackTraceFromException(exception)];
         DebugLog_Ver2(@"exception == %@",exceptionSTinfo);
-        [EAlertView showWithMsg:[NSString stringWithFormat:@"whew...碰上妖怪了，请邮件发送异常信息给开发者EGS(mw@kantai.co)。%@",exceptionSTinfo]
-                          block:^(int btnIndex) {
-                              if (btnIndex==0) {
-                                  NSString *URLSafeName = [[innerConsole sharedConsole] URLEncodedString:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]];
-                                  NSString *URLSafeLog = [[innerConsole sharedConsole] URLEncodedString:[[innerConsole sharedConsole].log_mArr componentsJoinedByString:@"\n"]];
-                                  NSMutableString *URLString = [NSMutableString stringWithFormat:@"mailto:%@?subject=%@%%20Console%%20Log&body=%@",
-                                                                [innerConsole sharedConsole].logSubmissionEmail ?: @"", URLSafeName, URLSafeLog];
-                                  
-                                  [[UIApplication sharedApplication] openURL:[NSURL URLWithString:URLString]];
-                              }
-                          }];
+//        [EAlertView showWithMsg:[NSString stringWithFormat:@"whew...碰上妖怪了，请邮件发送异常信息给开发者EGS(mw@kantai.co)。%@",exceptionSTinfo]
+//                          block:^(int btnIndex) {
+//                              if (btnIndex==0) {
+//                                  NSString *URLSafeName = [[innerConsole sharedConsole] URLEncodedString:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]];
+//                                  NSString *URLSafeLog = [[innerConsole sharedConsole] URLEncodedString:[[innerConsole sharedConsole].log_mArr componentsJoinedByString:@"\n"]];
+//                                  NSMutableString *URLString = [NSMutableString stringWithFormat:@"mailto:%@?subject=%@%%20Console%%20Log&body=%@",
+//                                                                [innerConsole sharedConsole].logSubmissionEmail ?: @"", URLSafeName, URLSafeLog];
+//                                  
+//                                  [[UIApplication sharedApplication] openURL:[NSURL URLWithString:URLString]];
+//                              }
+//                          }];
     }
 
 }
 
 - (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
-	
+    
     if ([innerConsole sharedConsole].enabled &&
         (TARGET_IPHONE_SIMULATOR ? [innerConsole sharedConsole].simulatorShakeToShow: [innerConsole sharedConsole].deviceShakeToShow))
     {
@@ -845,8 +853,8 @@ void exceptionHandler(NSException *exception)
                 [innerConsole hide];
             }
         }
-	}
-	[super motionEnded:motion withEvent:event];
+    }
+    [super motionEnded:motion withEvent:event];
 }
 
 @end

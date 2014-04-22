@@ -14,11 +14,18 @@
 //#import "PDNetworkDomain.h"
 
 
-//@protocol PDPrettyStringPrinting;
+#ifdef DEBUG
+//#   define DebugLog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__);
+#define DebugLog(...)///[innerConsole log:(@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__];  //iconsole式移除：ver1 notWorking  (...)///
+#define DebugLog_Ver2(fmt, ...) [innerConsole log:(@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__];
 
-@interface swizzOnNSURLConnection : NSObject //<PDNetworkCommandDelegate>
+#else
+#   define DebugLog(...)
+#   define DebugLog_Ver2(...)
+#endif
 
-//@property (nonatomic, strong) PDNetworkDomain *domain;
+@interface swizzOnNSURLConnection : NSObject  
+
 
 + (swizzOnNSURLConnection *)defaultInstance;
 + (void)injectIntoAllNSURLConnectionDelegateClasses;
