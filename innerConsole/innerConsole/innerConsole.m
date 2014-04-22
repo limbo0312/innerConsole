@@ -39,6 +39,7 @@
 @property (nonatomic, assign) BOOL           animating;
 
 @property (nonatomic, assign) BOOL go_upDown;
+@property (nonatomic, strong) UILabel        *RAM_Lbl;
 - (void)saveSettings;
 
 void exceptionHandler(NSException *exception);
@@ -202,7 +203,19 @@ void exceptionHandler(NSException *exception);
     
 	[self.view addSubview:_actionButton];
 	
+    //3===>ram lable index
+    self.RAM_Lbl = ({
+        UILabel *lbl = [[UILabel alloc] initWithFrame:R_MAKE(0, 50, 320, 24)];
     
+        lbl.backgroundColor = COLOR(0, 207, 150, 1);
+        lbl.textColor = COLOR(226, 47, 121, 1);
+        lbl.adjustsFontSizeToFitWidth = YES;
+        lbl.alpha = 0.55;
+        lbl;
+    });
+    [self.view addSubview:self.RAM_Lbl];
+
+
 	[self.consoleView scrollRangeToVisible:NSMakeRange(self.consoleView.text.length, 0)];
 }
 
@@ -338,6 +351,9 @@ void exceptionHandler(NSException *exception);
         [innerConsole sharedConsole].view.transform = [self viewTransform];
 		[UIView commitAnimations];
 	}
+
+        //===update info on RAM
+    self.RAM_Lbl.text = [NSString   stringWithFormat:@"MEMO_available is %f, MEMO_used is %f",MEMO_available,MEMO_used];
 }
 - (void)hideConsole
 {
@@ -658,6 +674,44 @@ void exceptionHandler(NSException *exception)
     if (buttonIndex != 5) {
         _go_upDown = NO;
     }
+}
+
+
+#pragma mark --memoinfo group
+// 获取当前设备可用内存(单位：MB）
+- (double)availableMemory
+{
+    vm_statistics_data_t vmStats;
+    mach_msg_type_number_t infoCount = HOST_VM_INFO_COUNT;
+    kern_return_t kernReturn = host_statistics(mach_host_self(),
+                                               HOST_VM_INFO,
+                                               (host_info_t)&vmStats,
+                                               &infoCount);
+    
+    if (kernReturn != KERN_SUCCESS) {
+        return NSNotFound;
+    }
+
+    
+    return ((vm_page_size *vmStats.free_count) / 1024.0) / 1024.0;
+}
+
+// 获取当前任务所占用的内存（单位：MB）
+- (double)usedMemory
+{
+    task_basic_info_data_t taskInfo;
+    mach_msg_type_number_t infoCount = TASK_BASIC_INFO_COUNT;
+    kern_return_t kernReturn = task_info(mach_task_self(),
+                                         TASK_BASIC_INFO,
+                                         (task_info_t)&taskInfo,
+                                         &infoCount);
+    
+    if (kernReturn != KERN_SUCCESS
+        ) {
+        return NSNotFound;
+    }
+    
+    return taskInfo.resident_size / 1024.0 / 1024.0;
 }
 
 @end
