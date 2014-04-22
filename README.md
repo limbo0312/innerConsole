@@ -8,4 +8,11 @@ innerConsole for App, give you a monitor without Xcode
 3. (plugin01)dump your userPlist file;
 4. (plugin02)dumo your object methodList or varList;
 
-![inner](innerConsole1.gif)
+![demo00](demo00.png)
+
+![demo00](demo01.png)
+
+![inner](innerConsole01.gif)
+![inner](innerConsole00.gif)
+
+
