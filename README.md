@@ -13,6 +13,6 @@ innerConsole for App, give you a monitor without Xcode
 ![demo00](demo01.png)
 
 ![inner](innerConsole01.gif)
-![inner](innerConsole00.gif)
+
 
 
