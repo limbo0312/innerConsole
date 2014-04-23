@@ -1,0 +1,3 @@
+[submodule "example/subModule"]
+	path = example/subModule
+	url = git@github.com:limbo0312/egsFramework.git
