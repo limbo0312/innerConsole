@@ -8,6 +8,7 @@ innerConsole for App, give you a monitor without Xcode
 3. (plugin01)dump your userPlist file;
 4. (plugin02)dumo your object methodList or varList;
 
+相关app: 球徒（业余足球了联赛app）
 ![demo00](demo00.png)
 
 ![demo00](demo01.png)
